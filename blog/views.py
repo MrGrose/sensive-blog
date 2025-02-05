@@ -22,6 +22,7 @@ def serialize_post(post):
 
 
 def serialize_post_optimized(post):
+    tags = post.tags.all()
     return {
         'title': post.title,
         'teaser_text': post.text[:200],
@@ -30,8 +31,8 @@ def serialize_post_optimized(post):
         'image_url': post.image.url if post.image else None,
         'published_at': post.published_at,
         'slug': post.slug,
-        'tags': [serialize_tag(tag) for tag in post.tags.all()],
-        'first_tag_title': post.tags.all()[0].title,
+        'tags': [serialize_tag(tag) for tag in tags],
+        'first_tag_title': tags[0].title if tags else None,
     }
 
 
@@ -47,7 +48,7 @@ def index(request):
         'author', 'tags')[:5].fetch_with_comments_count()
     most_fresh_posts = Post.objects.prefetch_related('author', 'tags').annotate(
         comments_count=Count('comments')).order_by('-published_at')[:5]
-    most_popular_tags = Tag.objects.popular()[:5]
+    most_popular_tags = Tag.objects.annotate(posts_count=Count('posts')).popular()[:5]
     context = {
         'most_popular_posts': [
             serialize_post_optimized(post) for post in most_popular_posts
