@@ -9,6 +9,30 @@ class TagQuerySet(models.QuerySet):
         return self.annotate(posts_count=Count('posts')).order_by('-posts_count')
 
 
+class PostQuerySet(models.QuerySet):
+    def popular(self):
+        return self.annotate(likes_count=Count('likes')).order_by('-likes_count')
+
+    def fetch_with_comments_count(self):
+        """
+        Оптимизирует получение количества комментариев для постов.
+
+        Вместо выполнения отдельного запроса для каждого поста, функция аннотирует
+        количество комментариев за один запрос к базе данных. Это снижает нагрузку
+        на БД и ускоряет выполнение запросов.
+
+        Использовать в ситуациях, когда необходимо получить данные
+        (например, количество комментариев) для большого числа объектов.
+        """
+        post_ids = list(self.values_list('id', flat=True))
+        posts_with_comments = Post.objects.filter(id__in=post_ids).annotate(comments_count=Count('comments'))
+        ids_and_comments = posts_with_comments.values_list('id', 'comments_count')
+        count_for_id = dict(ids_and_comments)
+        for post in self:
+            post.comments_count = count_for_id.get(post.id, 0)
+        return list(self)
+
+
 class Post(models.Model):
     title = models.CharField('Заголовок', max_length=200)
     text = models.TextField('Текст')
@@ -30,6 +54,7 @@ class Post(models.Model):
         'Tag',
         related_name='posts',
         verbose_name='Теги')
+    objects = PostQuerySet.as_manager()
 
     def __str__(self):
         return self.title
