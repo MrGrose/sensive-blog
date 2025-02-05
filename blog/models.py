@@ -1,7 +1,7 @@
 from django.db import models
 from django.urls import reverse
 from django.contrib.auth.models import User
-from django.db.models import Count
+from django.db.models import Count, Prefetch
 
 
 class TagQuerySet(models.QuerySet):
@@ -24,12 +24,15 @@ class PostQuerySet(models.QuerySet):
         Использовать в ситуациях, когда необходимо получить данные
         (например, количество комментариев) для большого числа объектов.
         """
-        post_ids = list(self.values_list('id', flat=True))
-        posts_with_comments = Post.objects.filter(id__in=post_ids).annotate(comments_count=Count('comments'))
-        ids_and_comments = posts_with_comments.values_list('id', 'comments_count')
-        count_for_id = dict(ids_and_comments)
+        posts_with_comments = Post.objects.filter(
+            id__in=self.values_list('id', flat=True)
+            ).annotate(comments_count=Count('comments'))
+        posts_with_comments = posts_with_comments.prefetch_related(Prefetch('comments'))
+        count_for_id = dict(posts_with_comments.values_list('id', 'comments_count'))
+
         for post in self:
             post.comments_count = count_for_id.get(post.id, 0)
+
         return list(self)
 
 
