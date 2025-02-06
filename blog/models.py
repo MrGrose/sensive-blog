@@ -29,11 +29,14 @@ class PostQuerySet(models.QuerySet):
             ).annotate(comments_count=Count('comments'))
         posts_with_comments = posts_with_comments.prefetch_related(Prefetch('comments'))
         count_for_id = dict(posts_with_comments.values_list('id', 'comments_count'))
-
         for post in self:
             post.comments_count = count_for_id.get(post.id, 0)
-
         return list(self)
+
+    def fetch_with_tags(self):
+        return self.prefetch_related(
+            'author', Prefetch('tags', queryset=Tag.objects.popular())
+        )
 
 
 class Post(models.Model):
