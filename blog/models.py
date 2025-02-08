@@ -34,9 +34,8 @@ class PostQuerySet(models.QuerySet):
         return list(self)
 
     def fetch_with_tags(self):
-        return self.prefetch_related(
-            'author', Prefetch('tags', queryset=Tag.objects.popular())
-        )
+        return self.select_related('author').prefetch_related(
+            Prefetch('tags', queryset=Tag.objects.popular()))
 
 
 class Post(models.Model):
